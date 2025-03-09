@@ -9,13 +9,22 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kameandroid"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.kameandroid",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +45,15 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "vapidKey": "YOUR_VAPID_KEY",
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "cb76806c-2032-4aed-b52c-3e0c0f69d274"
+      }
     }
   }
 }
