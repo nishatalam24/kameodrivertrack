@@ -1,8 +1,12 @@
 // This file ensures notification handlers are registered before components are loaded
 import { registerNotificationHandler } from './utils/notificationHandlers';
+import { initializeFirebaseMessaging } from './utils/firebaseSetup';
 import { AppRegistry } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import { Alert } from 'react-native';
+
+// Initialize Firebase messaging early to set up background handlers
+initializeFirebaseMessaging();
 
 // Request notification permission early
 messaging()

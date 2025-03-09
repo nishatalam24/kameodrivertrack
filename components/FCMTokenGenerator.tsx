@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, Button, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { Platform } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
+import { getApp } from '@react-native-firebase/app';
+import { 
+  getMessaging,
+  getToken as getFCMToken,
+  requestPermission,
+  AuthorizationStatus
+} from '@react-native-firebase/messaging';
 
 /**
  * FCM Token Generator Component
@@ -11,6 +17,9 @@ const FCMTokenGenerator = () => {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Get messaging instance (new modular API)
+  const messagingInstance = getMessaging(getApp());
 
   /**
    * Generate FCM token for the device
@@ -26,64 +35,59 @@ const FCMTokenGenerator = () => {
       setError(null);
 
       // Check permission
-      const authStatus = await messaging().requestPermission();
+      const authStatus = await requestPermission(messagingInstance);
       const enabled = 
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-      
+        authStatus === AuthorizationStatus.AUTHORIZED ||
+        authStatus === AuthorizationStatus.PROVISIONAL;
+
       if (!enabled) {
-        setError('Notification permission denied');
+        setError('Notification permissions are not enabled');
+        setLoading(false);
         return;
       }
 
       // Get token
-      const fcmToken = await messaging().getToken();
+      const fcmToken = await getFCMToken(messagingInstance);
       setToken(fcmToken);
+      console.log('FCM Token:', fcmToken);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to generate token';
-      setError(errorMessage);
+      console.error('Error generating FCM token:', err);
+      setError('Failed to generate token: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * Copy token to clipboard
-   */
-  const copyToken = () => {
-    if (token) {
-      // This would require Clipboard from react-native
-      // Clipboard.setString(token);
-      alert('Token copied to clipboard');
-    }
-  };
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Firebase Cloud Messaging</Text>
-      <Text style={styles.subtitle}>Generate and manage your FCM token</Text>
-
-      <Button
-        title="Generate FCM Token"
-        onPress={generateToken}
-        disabled={loading}
-      />
-
-      {loading && <ActivityIndicator style={styles.loader} />}
-
+      <Text style={styles.title}>FCM Token Generator</Text>
+      
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
-
+      
+      <View style={styles.buttonContainer}>
+        <Button
+          title="Generate Token"
+          onPress={generateToken}
+          disabled={loading}
+        />
+      </View>
+      
+      {loading && (
+        <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+      )}
+      
       {token && (
         <View style={styles.tokenContainer}>
-          <Text style={styles.tokenTitle}>Your FCM Token:</Text>
-          <ScrollView style={styles.tokenScroll}>
-            <Text style={styles.tokenText} selectable>{token}</Text>
+          <Text style={styles.tokenTitle}>FCM Token:</Text>
+          <ScrollView style={styles.tokenScrollView}>
+            <Text style={styles.tokenText} selectable={true}>
+              {token}
+            </Text>
           </ScrollView>
-          <Button title="Copy Token" onPress={copyToken} />
         </View>
       )}
     </View>

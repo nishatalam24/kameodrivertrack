@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Button, Alert, ScrollView } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
+import { getApp } from '@react-native-firebase/app';
+import { 
+  getMessaging, 
+  requestPermission,
+  hasPermission, 
+  onMessage,
+  getInitialNotification,
+  onNotificationOpenedApp,
+  AuthorizationStatus 
+} from '@react-native-firebase/messaging';
 
 interface NotificationData {
   title?: string;
@@ -27,17 +36,20 @@ const NotificationMonitor = () => {
   const [lastNotification, setLastNotification] = useState<NotificationData | null>(null);
   const [notificationLogs, setNotificationLogs] = useState<NotificationLogItem[]>([]);
 
+  // Get messaging instance (new modular API)
+  const messagingInstance = getMessaging(getApp());
+
   /**
    * Request notification permissions
    */
   const requestPermissions = async () => {
     try {
-      const authStatus = await messaging().requestPermission();
+      const authStatus = await requestPermission(messagingInstance);
       
-      if (authStatus === messaging.AuthorizationStatus.AUTHORIZED) {
+      if (authStatus === AuthorizationStatus.AUTHORIZED) {
         setPermissionStatus('authorized');
         Alert.alert('Permission Granted', 'You will receive notifications');
-      } else if (authStatus === messaging.AuthorizationStatus.PROVISIONAL) {
+      } else if (authStatus === AuthorizationStatus.PROVISIONAL) {
         setPermissionStatus('provisional');
         Alert.alert('Provisional Permission', 'You will receive quiet notifications');
       } else {
@@ -55,11 +67,11 @@ const NotificationMonitor = () => {
    */
   const checkPermission = async () => {
     try {
-      const authStatus = await messaging().hasPermission();
+      const authStatus = await hasPermission(messagingInstance);
       
-      if (authStatus === messaging.AuthorizationStatus.AUTHORIZED) {
+      if (authStatus === AuthorizationStatus.AUTHORIZED) {
         setPermissionStatus('authorized');
-      } else if (authStatus === messaging.AuthorizationStatus.PROVISIONAL) {
+      } else if (authStatus === AuthorizationStatus.PROVISIONAL) {
         setPermissionStatus('provisional');
       } else {
         setPermissionStatus('denied');
@@ -150,20 +162,19 @@ const NotificationMonitor = () => {
     checkPermission();
     
     // Foreground notifications handler
-    const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
+    const unsubscribeForeground = onMessage(messagingInstance, async remoteMessage => {
       console.log('Foreground notification received');
       processNotification(remoteMessage);
     });
     
     // Background open notification handler
-    const unsubscribeBackgroundOpen = messaging().onNotificationOpenedApp(remoteMessage => {
+    const unsubscribeBackgroundOpen = onNotificationOpenedApp(messagingInstance, remoteMessage => {
       console.log('Notification opened app from background');
       processNotification(remoteMessage);
     });
     
     // Check if app was opened from a notification when in quit state
-    messaging()
-      .getInitialNotification()
+    getInitialNotification(messagingInstance)
       .then(remoteMessage => {
         if (remoteMessage) {
           console.log('App opened from quit state with notification');
