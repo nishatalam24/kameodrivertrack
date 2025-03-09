@@ -74,6 +74,7 @@ const NotificationMonitor = () => {
    * Process incoming notification
    */
   const processNotification = (remoteMessage: any) => {
+    console.log('Processing notification',remoteMessage);
     try {
       // Extract notification data
       const notificationType = remoteMessage?.data?.type || 'unknown';
