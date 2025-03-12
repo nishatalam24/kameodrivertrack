@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Button, Alert, ScrollView } from 'react-native';
+import { getApp } from '@react-native-firebase/app';
 import messaging from '@react-native-firebase/messaging';
+
+import { 
+  getMessaging,
+  requestPermission,
+  hasPermission, 
+  onMessage,
+  getInitialNotification,
+  onNotificationOpenedApp,
+  AuthorizationStatus 
+} from '@react-native-firebase/messaging';
 
 interface NotificationData {
   title?: string;
@@ -21,23 +32,51 @@ interface NotificationLogItem {
  * Notification Monitor Component
  * Handles FCM notifications and permission requests
  */
+
+
+
+// messaging().setBackgroundMessageHandler(async remoteMessage => {
+//   console.log('FCM Message in Background:', remoteMessage);
+
+//   // Perform any task here, such as:
+//   // - Saving the notification to AsyncStorage
+//   // - Triggering an API call
+//   // - Logging events
+
+// });
 const NotificationMonitor = () => {
+
+
+  
   const [permissionStatus, setPermissionStatus] = useState<string>('unknown');
   const [notificationCount, setNotificationCount] = useState(0);
   const [lastNotification, setLastNotification] = useState<NotificationData | null>(null);
   const [notificationLogs, setNotificationLogs] = useState<NotificationLogItem[]>([]);
+  
+  const requestFCMPermissions = async () => {
+    const authStatus = await messaging().requestPermission();
+    if (authStatus === messaging.AuthorizationStatus.AUTHORIZED) {
+      console.log('FCM Permission granted');
+    } else {
+      console.warn('FCM Permission denied');
+    }
+  };
+  
+
+  // Initialize messaging with modular API
+  const messagingInstance = getMessaging(getApp());
 
   /**
    * Request notification permissions
    */
   const requestPermissions = async () => {
     try {
-      const authStatus = await messaging().requestPermission();
+      const authStatus = await requestPermission(messagingInstance);
       
-      if (authStatus === messaging.AuthorizationStatus.AUTHORIZED) {
+      if (authStatus === AuthorizationStatus.AUTHORIZED) {
         setPermissionStatus('authorized');
         Alert.alert('Permission Granted', 'You will receive notifications');
-      } else if (authStatus === messaging.AuthorizationStatus.PROVISIONAL) {
+      } else if (authStatus === AuthorizationStatus.PROVISIONAL) {
         setPermissionStatus('provisional');
         Alert.alert('Provisional Permission', 'You will receive quiet notifications');
       } else {
@@ -55,11 +94,11 @@ const NotificationMonitor = () => {
    */
   const checkPermission = async () => {
     try {
-      const authStatus = await messaging().hasPermission();
+      const authStatus = await hasPermission(messagingInstance);
       
-      if (authStatus === messaging.AuthorizationStatus.AUTHORIZED) {
+      if (authStatus === AuthorizationStatus.AUTHORIZED) {
         setPermissionStatus('authorized');
-      } else if (authStatus === messaging.AuthorizationStatus.PROVISIONAL) {
+      } else if (authStatus === AuthorizationStatus.PROVISIONAL) {
         setPermissionStatus('provisional');
       } else {
         setPermissionStatus('denied');
@@ -149,20 +188,19 @@ const NotificationMonitor = () => {
     checkPermission();
     
     // Foreground notifications handler
-    const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
+    const unsubscribeForeground = onMessage(messagingInstance, async remoteMessage => {
       console.log('Foreground notification received');
       processNotification(remoteMessage);
     });
     
     // Background open notification handler
-    const unsubscribeBackgroundOpen = messaging().onNotificationOpenedApp(remoteMessage => {
+    const unsubscribeBackgroundOpen = onNotificationOpenedApp(messagingInstance, remoteMessage => {
       console.log('Notification opened app from background');
       processNotification(remoteMessage);
     });
     
     // Check if app was opened from a notification when in quit state
-    messaging()
-      .getInitialNotification()
+    getInitialNotification(messagingInstance)
       .then(remoteMessage => {
         if (remoteMessage) {
           console.log('App opened from quit state with notification');
@@ -177,6 +215,31 @@ const NotificationMonitor = () => {
     };
   }, []);
 
+
+  useEffect(() => {
+    // Handle notifications when app is in foreground
+    const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
+      console.log('Received FCM in Foreground:', remoteMessage);
+    });
+  
+    // Handle when the app is opened by clicking the notification
+    const unsubscribeBackgroundOpen = messaging().onNotificationOpenedApp(remoteMessage => {
+      console.log('App opened from background:', remoteMessage);
+    });
+  
+    // Handle notification when app was quit and then opened
+    messaging().getInitialNotification().then(remoteMessage => {
+      if (remoteMessage) {
+        console.log('App opened from quit state with notification:', remoteMessage);
+      }
+    });
+  
+    return () => {
+      unsubscribeForeground();
+      unsubscribeBackgroundOpen();
+    };
+  }, []);
+  
   return (
     <View style={styles.container}>
       <View style={styles.headerSection}>

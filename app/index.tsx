@@ -3,13 +3,20 @@ import { Text, View, Platform, Button, Alert, ActivityIndicator, AppState } from
 import Constants from "expo-constants";
 import FCMTokenGenerator from '../components/FCMTokenGenerator';
 import NotificationMonitor from '../components/NotificationMonitor';
+import LocationTracker from "../components/LocationTracker";
 // Import utilities from separate files
+import Jscomponent from '../components/Jscomponent';
+import Bgcoordin from '../components/Bgcoordin';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   NotificationData, 
   registerNotificationHandler,
   createAppNotificationHandler
 } from '../utils/notificationHandlers';
 import { messaging, getToken, createNotificationChannel } from '../utils/firebaseUtils';
+
+
+
 
 // Safe import of configurations for non-Android platforms
 if (Platform.OS !== 'android') {
@@ -71,19 +78,64 @@ function Index() {
   );
 
   // Monitor app state changes
+  // useEffect(() => {
+  //   console.log('🔔 Setting up app state monitoring, current state:', appState);
+    
+  //   const subscription = AppState.addEventListener('change', nextAppState => {
+  //     console.log('🔔 App state changed from', appState, 'to', nextAppState);
+  //     setAppState(nextAppState);
+  //   });
+
+  //   return () => {
+  //     console.log('🔔 Cleaning up app state monitoring');
+  //     subscription.remove();
+  //   };
+  // }, [appState]);
+
+
   useEffect(() => {
     console.log('🔔 Setting up app state monitoring, current state:', appState);
     
     const subscription = AppState.addEventListener('change', nextAppState => {
-      console.log('🔔 App state changed from', appState, 'to', nextAppState);
-      setAppState(nextAppState);
+        console.log('🔔 App state changed from', appState, 'to', nextAppState);
+        
+        // Handle background state
+        if (nextAppState === 'background') {
+            // Save current state to AsyncStorage
+            AsyncStorage.setItem('APP_STATE', JSON.stringify({
+                isTracking: true,
+                lastUpdate: new Date().toISOString()
+            }));
+        }
+        
+        // Handle coming back to foreground
+        if (appState === 'background' && nextAppState === 'active') {
+            // Recover state if needed
+            AsyncStorage.getItem('APP_STATE').then(savedState => {
+                if (savedState) {
+                    const parsedState = JSON.parse(savedState);
+                    // Restart services if they were running
+                    if (parsedState.isTracking) {
+                        // Your tracking restart logic
+                    }
+                }
+            });
+        }
+        
+        setAppState(nextAppState);
     });
 
     return () => {
-      console.log('🔔 Cleaning up app state monitoring');
-      subscription.remove();
+        // Persist state before cleanup
+        if (appState === 'active') {
+            AsyncStorage.setItem('APP_STATE', JSON.stringify({
+                isTracking: true,
+                lastUpdate: new Date().toISOString()
+            }));
+        }
+        subscription.remove();
     };
-  }, [appState]);
+}, [appState]);
 
   // Setup notification channel first
   useEffect(() => {
@@ -200,6 +252,9 @@ function Index() {
 
 <FCMTokenGenerator />
 <NotificationMonitor />
+{/* <LocationTracker /> */}
+{/* <Jscomponent /> */}
+{/* <Bgcoordin/> */}
     </View>
   );
 }

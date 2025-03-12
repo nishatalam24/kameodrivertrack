@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, Button, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { Platform } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
+import { getApp } from '@react-native-firebase/app';
+import { 
+  getMessaging, 
+  getToken, 
+  requestPermission,
+  AuthorizationStatus 
+} from '@react-native-firebase/messaging';
 
 /**
  * FCM Token Generator Component
@@ -11,6 +17,9 @@ const FCMTokenGenerator = () => {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Initialize messaging with modular API
+  const messagingInstance = getMessaging(getApp());
 
   /**
    * Generate FCM token for the device
@@ -26,10 +35,10 @@ const FCMTokenGenerator = () => {
       setError(null);
 
       // Check permission
-      const authStatus = await messaging().requestPermission();
+      const authStatus = await requestPermission(messagingInstance);
       const enabled = 
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+        authStatus === AuthorizationStatus.AUTHORIZED ||
+        authStatus === AuthorizationStatus.PROVISIONAL;
       
       if (!enabled) {
         setError('Notification permission denied');
@@ -37,7 +46,7 @@ const FCMTokenGenerator = () => {
       }
 
       // Get token
-      const fcmToken = await messaging().getToken();
+      const fcmToken = await getToken(messagingInstance);
       setToken(fcmToken);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate token';
